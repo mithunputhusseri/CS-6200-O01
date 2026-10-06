@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>SunOS Kernel Multithreading — Exam Guide</title>
+  <style>
+    :root {
+      --bg: #f5f7fb; --surface: #fff; --ink: #172033; --muted: #596579;
+      --line: #dce2ee; --brand: #3458d4; --brand-soft: #eaf0ff;
+      --accent: #0f8b8d; --warn: #fff3d6; --shadow: 0 14px 36px #1d315d12;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#101522; --surface:#182033; --ink:#edf2ff; --muted:#b8c2d8;
+        --line:#303b55; --brand:#91a9ff; --brand-soft:#202c52; --accent:#58d0c3;
+        --warn:#493c21; --shadow:0 14px 36px #0005; }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    .wrap { width:min(1180px, calc(100% - 32px)); margin:auto; }
+    header { padding:58px 0 42px; background:linear-gradient(135deg,#162c67,#3458d4 58%,#0f8b8d); color:white; }
+    header p { max-width:760px; color:#e5ebff; margin:14px 0 0; }
+    .eyebrow { text-transform:uppercase; letter-spacing:.14em; font-size:.76rem; font-weight:800; opacity:.85; }
+    h1,h2,h3 { line-height:1.18; margin:0 0 14px; }
+    h1 { font-size:clamp(2.1rem,5vw,4.4rem); max-width:850px; letter-spacing:-.04em; }
+    h2 { font-size:clamp(1.55rem,3vw,2.25rem); }
+    h3 { font-size:1.15rem; }
+    a { color:var(--brand); font-weight:650; }
+    header a { color:white; }
+    nav { position:sticky; top:0; z-index:4; background:color-mix(in srgb,var(--surface) 94%,transparent); border-bottom:1px solid var(--line); backdrop-filter:blur(12px); }
+    nav .wrap { display:flex; gap:18px; overflow:auto; white-space:nowrap; padding:10px 0; }
+    nav a { text-decoration:none; font-size:.9rem; }
+    main { padding:34px 0 70px; }
+    section { scroll-margin-top:60px; margin:36px 0; }
+    .lead, .card, .diagram, details { background:var(--surface); border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow); }
+    .lead { padding:26px; margin:0 0 28px; border-left:5px solid var(--accent); }
+    .grid { display:grid; grid-template-columns:repeat(12,1fr); gap:18px; }
+    .card { padding:22px; grid-column:span 4; }
+    .wide { grid-column:span 8; } .full { grid-column:1/-1; }
+    .card h3 { color:var(--brand); }
+    .tag { display:inline-block; background:var(--brand-soft); color:var(--brand); padding:3px 9px; border-radius:99px; font-size:.78rem; font-weight:750; margin:0 5px 8px 0; }
+    .callout { padding:15px 18px; border-radius:12px; background:var(--warn); margin:16px 0; }
+    .callout strong { color:var(--accent); }
+    ul { padding-left:1.25rem; } li+li { margin-top:6px; }
+    .diagram { padding:18px; overflow:hidden; }
+    .diagram svg { display:block; width:100%; height:auto; min-height:180px; }
+    .caption { color:var(--muted); font-size:.88rem; margin:10px 4px 0; }
+    .flow { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; align-items:center; text-align:center; }
+    .flow > * { min-width:0; }
+    .node { padding:15px 10px; border:2px solid var(--brand); border-radius:12px; background:var(--brand-soft); font-weight:750; }
+    .arrow { color:var(--accent); font-size:1.5rem; font-weight:900; }
+    .compare { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .compare > div { padding:18px; border-radius:13px; background:var(--brand-soft); }
+    code { background:var(--brand-soft); padding:2px 5px; border-radius:5px; font-size:.9em; }
+    pre { overflow:auto; background:#111827; color:#dbeafe; padding:17px; border-radius:12px; font-size:.85rem; }
+    details { padding:15px 18px; margin:10px 0; box-shadow:none; }
+    summary { cursor:pointer; font-weight:750; color:var(--brand); }
+    .checklist { columns:2; }
+    footer { border-top:1px solid var(--line); padding:28px 0 50px; color:var(--muted); font-size:.9rem; }
+    @media (max-width:760px) {
+      header { padding:40px 0 32px; } .wrap { width:min(100% - 22px,1180px); }
+      .card,.wide { grid-column:1/-1; } .flow { grid-template-columns:1fr; }
+      .arrow { transform:rotate(90deg); } .compare { grid-template-columns:1fr; }
+      .checklist { columns:1; } .lead,.card { padding:18px; }
+    }
+    @media print {
+      nav { position:static; } header { color:#111; background:white; padding:20px 0; }
+      header p { color:#333; } .card,.lead,.diagram { box-shadow:none; break-inside:avoid; }
+      a { color:#111; } main { padding-top:0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="eyebrow">CS-6200 • exam revision guide</div>
+      <h1>Beyond Multiprocessing: Multithreading the SunOS Kernel</h1>
+      <p>A structured guide to Eykholt et al.’s USENIX Summer ’92 paper, expanded from your notes with definitions, diagrams, design reasoning, and likely exam connections.</p>
+    </div>
+  </header>
+  <nav aria-label="Page sections"><div class="wrap">
+    <a href="#big-picture">Big picture</a><a href="#architecture">Architecture</a><a href="#scheduling">Scheduling</a>
+    <a href="#sync">Synchronization</a><a href="#interrupts">Interrupt threads</a><a href="#locking">Locking</a>
+    <a href="#exam">Exam review</a><a href="#glossary">Glossary</a>
+  </div></nav>
+  <main class="wrap">
+    <div class="lead">
+      <strong>One-sentence thesis:</strong> SunOS 5.0 rebuilt the kernel around fully preemptible kernel threads, allowing asynchronous work, user-level multithreading, interrupts, real-time scheduling, and multiprocessor execution to use one consistent scheduling and synchronization model.
+    </div>
+
+    <section id="big-picture">
+      <h2>1. The problem and the design answer</h2>
+      <div class="grid">
+        <article class="card wide">
+          <h3>Why “just add locks” was not enough</h3>
+          <ul>
+            <li>Multiprocessors need high concurrency: independent work must run simultaneously on different CPUs.</li>
+            <li>User processes need multiple independent flows that can make system calls and handle page faults.</li>
+            <li>Real-time work needs bounded dispatch latency: a high-priority runnable thread must not wait behind an unbounded critical section.</li>
+            <li>Interrupt handlers traditionally run in a constrained context: they cannot safely sleep or call code that may block.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>SunOS response</h3>
+          <span class="tag">threads everywhere</span><span class="tag">preemption</span><span class="tag">priority inheritance</span>
+          <p>Make the kernel thread the fundamental schedulable entity. Build system activity and interrupt work from the same primitive, then protect shared data with explicit synchronization objects.</p>
+        </article>
+      </div>
+      <div class="diagram" aria-label="SunOS design goals diagram">
+        <div class="flow">
+          <div class="node">MP concurrency</div><div class="arrow">→</div>
+          <div class="node">Preemptible kernel</div><div class="arrow">→</div>
+          <div class="node">Real-time response</div><div class="arrow">→</div>
+          <div class="node">Threads as the nucleus</div>
+        </div>
+        <p class="caption">The central architectural move: make all important execution contexts schedulable as threads.</p>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <h2>2. The execution model: process, LWP, and kernel thread</h2>
+      <p>The terms are related but not interchangeable. This distinction is a frequent exam target.</p>
+      <div class="diagram">
+        <svg viewBox="0 0 1000 360" role="img" aria-label="Process contains LWPs, each associated with a kernel thread, while system threads have no LWP">
+          <rect x="15" y="20" width="970" height="315" rx="18" fill="none" stroke="#3458d4" stroke-width="3"/>
+          <text x="40" y="54" font-size="22" font-weight="700" fill="currentColor">User process: shared address space, files, credentials, signal handlers</text>
+          <rect x="50" y="85" width="270" height="190" rx="14" fill="#eaf0ff" stroke="#3458d4" stroke-width="2"/>
+          <text x="72" y="120" font-size="21" font-weight="700" fill="#3458d4">LWP 1</text><text x="72" y="151" font-size="16" fill="currentColor">PCB / user registers</text><text x="72" y="178" font-size="16" fill="currentColor">system-call arguments</text><text x="72" y="205" font-size="16" fill="currentColor">signals + resource use</text><text x="72" y="232" font-size="16" fill="currentColor">swappable kernel stack</text>
+          <rect x="365" y="125" width="255" height="110" rx="14" fill="#dff6f1" stroke="#0f8b8d" stroke-width="2"/>
+          <text x="390" y="160" font-size="21" font-weight="700" fill="#0f8b8d">Kernel thread</text><text x="390" y="190" font-size="16" fill="currentColor">kernel registers + stack</text><text x="390" y="216" font-size="16" fill="currentColor">priority + dispatch links</text>
+          <path d="M320 180h42" stroke="#0f8b8d" stroke-width="4" marker-end="url(#arrow)"/>
+          <rect x="665" y="85" width="270" height="190" rx="14" fill="#fff3d6" stroke="#d18b00" stroke-width="2"/>
+          <text x="687" y="120" font-size="21" font-weight="700" fill="#a26900">System thread</text><text x="687" y="151" font-size="16" fill="currentColor">kernel activity only</text><text x="687" y="178" font-size="16" fill="currentColor">no LWP required</text><text x="687" y="205" font-size="16" fill="currentColor">non-swappable allocation</text><text x="687" y="232" font-size="16" fill="currentColor">e.g., async I/O, callout</text>
+          <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8z" fill="#0f8b8d"/></marker></defs>
+        </svg>
+        <p class="caption"><strong>Key fact:</strong> every LWP has a kernel thread, but not every kernel thread has an LWP. User-level threads can be many-to-many over a process’s LWPs.</p>
+      </div>
+      <div class="grid">
+        <article class="card"><h3>Kernel thread</h3><p>The schedulable entity: small structure, stack, kernel registers, scheduling class, priority, and links to LWP/process/CPU. Switching it does not require changing address-space information.</p></article>
+        <article class="card"><h3>LWP</h3><p>Kernel-supported execution context inside a process. It stores user-visible state and is swappable. A user thread library can switch between user threads without entering the kernel.</p></article>
+        <article class="card"><h3>CPU structure</h3><p>Per-processor state points to the current thread, idle thread, dispatching information, and interrupt handling state. The current thread gives fast access to related structures.</p></article>
+      </div>
+    </section>
+
+    <section id="scheduling">
+      <h2>3. Scheduling and preemption</h2>
+      <div class="grid">
+        <article class="card wide">
+          <h3>Dispatcher rule</h3>
+          <ol>
+            <li>A scheduling class converts its class-specific priority into a global priority.</li>
+            <li>The dispatcher chooses the runnable thread with the greatest global priority.</li>
+            <li>Equal-priority threads run round-robin.</li>
+            <li>When a high-priority thread becomes runnable, the current thread is preempted as soon as practical, except in a small bounded non-preemptible region.</li>
+          </ol>
+          <div class="callout"><strong>Priority is contextual:</strong> with priority inheritance, a thread’s effective priority reflects both the service it is performing and the higher-priority work it is blocking by holding a lock.</div>
+        </article>
+        <article class="card">
+          <h3>Scheduling classes</h3>
+          <ul><li><strong>System:</strong> kernel/system activity.</li><li><strong>Timesharing:</strong> ordinary workloads.</li><li><strong>Real-time:</strong> fixed-priority scheduling.</li></ul>
+          <p><strong>Exam phrase:</strong> scheduling operates on threads, not processes.</p>
+        </article>
+      </div>
+      <div class="diagram">
+        <div class="flow">
+          <div class="node">B releases lock</div><div class="arrow">→</div><div class="node">A (higher priority) wakes</div><div class="arrow">→</div><div class="node">B yields / is preempted</div><div class="arrow">→</div><div class="node">A runs</div>
+        </div>
+        <p class="caption">On an SMP system, another CPU may also be directed to preempt its current lower-priority thread.</p>
+      </div>
+    </section>
+
+    <section id="sync">
+      <h2>4. Synchronization architecture</h2>
+      <div class="grid">
+        <article class="card"><h3>Mutex</h3><p>Mutual exclusion: at most one owner enters a protected region. SunOS adaptive mutexes spin while the owner is running, then sleep if the owner stops running.</p></article>
+        <article class="card"><h3>Condition variable</h3><p>Wait for a condition while releasing a mutex; another thread signals one waiter or broadcasts to all. Signal-aware variants can return when interrupted.</p></article>
+        <article class="card"><h3>Readers/writer lock</h3><p>Many readers may enter together, but a writer is exclusive. Writer ownership supports priority inheritance; read ownership is harder to enumerate.</p></article>
+        <article class="card"><h3>Semaphore</h3><p>A counter representing available units of a resource. “P” waits/decrements; “V” signals/increments. It need not have a single owner.</p></article>
+      </div>
+      <div class="compare">
+        <div><h3>Adaptive mutex decision</h3><p><code>locked?</code> → owner running: <strong>spin</strong> briefly; owner not running: <strong>sleep</strong>. This avoids an expensive sleep/wakeup when a running owner is about to release the lock.</p></div>
+        <div><h3>Priority inversion</h3><p>Low-priority L holds a lock needed by high-priority H, while medium-priority M runs. <strong>Priority inheritance</strong> temporarily boosts L so it can finish and release the lock.</p></div>
+      </div>
+      <div class="diagram">
+        <svg viewBox="0 0 900 220" role="img" aria-label="Turnstile maps a small synchronization object field to a wait queue and priority inheritance metadata">
+          <rect x="30" y="70" width="220" height="85" rx="12" fill="#eaf0ff" stroke="#3458d4" stroke-width="3"/><text x="58" y="105" font-size="20" font-weight="700" fill="#3458d4">Mutex / CV</text><text x="58" y="133" font-size="15" fill="currentColor">small turnstile ID</text>
+          <path d="M255 112h105" stroke="#0f8b8d" stroke-width="5" marker-end="url(#a2)"/>
+          <rect x="370" y="35" width="500" height="155" rx="12" fill="#dff6f1" stroke="#0f8b8d" stroke-width="3"/><text x="400" y="70" font-size="21" font-weight="700" fill="#0f8b8d">Turnstile (preallocated)</text><text x="400" y="104" font-size="16" fill="currentColor">sleep queue header</text><text x="400" y="132" font-size="16" fill="currentColor">waiting threads</text><text x="400" y="160" font-size="16" fill="currentColor">priority-inheritance information</text>
+          <defs><marker id="a2" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L9 4L0 8z" fill="#0f8b8d"/></marker></defs>
+        </svg>
+        <p class="caption"><strong>Why turnstiles?</strong> Synchronization objects stay small, while each turnstile gives a lock its own predictable wait queue. Hashed queues could be shared by unrelated locks, making real-time behavior less predictable.</p>
+      </div>
+    </section>
+
+    <section id="interrupts">
+      <h2>5. Interrupts as threads</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>Traditional drawback</h3>
+          <ul><li>Interrupt handler may deadlock on a lock held by the interrupted code.</li><li>Interrupt priority must be raised/lowered around many locks.</li><li>Handler runs in a restricted context and cannot sleep safely.</li></ul>
+        </article>
+        <article class="card wide">
+          <h3>SunOS technique: lazy thread conversion</h3>
+          <ol><li>Preallocate partly initialized interrupt threads.</li><li>On interrupt, do minimal work and run on that thread’s stack; the interrupted thread is pinned.</li><li>If no lock contention occurs, return cheaply.</li><li>If the handler blocks, save state (“passivate”) and become a full schedulable thread; the pinned thread can resume.</li></ol>
+        </article>
+      </div>
+      <div class="diagram">
+        <div class="flow">
+          <div class="node">Device interrupt</div><div class="arrow">→</div><div class="node">High-priority interrupt thread</div><div class="arrow">→</div><div class="node">No contention: return</div><div class="arrow">→</div><div class="node">Contention: block + become full thread</div>
+        </div>
+        <p class="caption">The optimization pays the full thread-conversion cost only when the interrupt actually needs to sleep.</p>
+      </div>
+      <div class="callout"><strong>Important nuance:</strong> while an interrupt thread is active, its interrupt level and lower levels remain blocked. The configurable “thread level” determines which interrupts can be handled as threads; higher-priority firmware-like interrupts use spin synchronization.</div>
+      <article class="card full">
+        <h3>Clock interrupt special case</h3>
+        <p>There is one clock interrupt thread for the whole system, not one per CPU. If another tick arrives while it is active, the handler clears the interrupt and increments a counter; the clock thread processes the missed tick before returning. This is rare and usually indicates heavy higher-level interrupt activity or debugging.</p>
+      </article>
+    </section>
+
+    <section id="locking">
+      <h2>6. Locking, drivers, and implementation tools</h2>
+      <div class="grid">
+        <article class="card"><h3>Data-based locking</h3><p>Locks protect shared data, rather than entire routines. The design rule is: every piece of shared data has a synchronization object.</p></article>
+        <article class="card"><h3>MT-safe vs. MT-unsafe drivers</h3><p>Unsafe drivers are wrapped by one global <code>unsafe_driver</code> mutex, serializing their entry points, interrupts, and callbacks. Safe drivers provide their own locking; “MT-hot” means fine-grained locking.</p></article>
+        <article class="card"><h3>Kernel time slicing</h3><p>The clock handler can preempt kernel threads even on a uniprocessor, creating many interleavings that expose missing locks. It is primarily a debugging feature.</p></article>
+        <article class="card"><h3>locknest</h3><p>A lint-like static analyzer that builds call graphs and reports lock-order cycles. It finds hierarchy violations before they become runtime deadlocks.</p></article>
+      </div>
+    </section>
+
+    <section id="exam">
+      <h2>7. Exam-ready synthesis</h2>
+      <div class="lead"><strong>Compare the trade-off:</strong> threads simplify structure and enable concurrency, preemption, and real-time scheduling—but stacks consume memory and context switches remain expensive. Some tiny activities are still better as callouts or “zero-weight” processes.</div>
+      <h3>Common questions and compact answers</h3>
+      <details><summary>Why separate user-level threads from LWPs?</summary><p>The library can switch between user threads without entering the kernel, while many user threads can share a smaller number of kernel-supported LWPs and avoid excessive kernel resource use. A thread bound to an LWP can still use a specific kernel execution context.</p></details>
+      <details><summary>How does SunOS reduce priority inversion?</summary><p>Locks with identifiable owners support priority inheritance. A lock holder inherits the priority of blocked higher-priority work, finishes its critical section sooner, and releases the lock.</p></details>
+      <details><summary>Why are adaptive mutexes preferable to always spinning?</summary><p>Spinning is useful when the owner is currently running and will release soon; sleeping is better when the owner is not running. Adaptive behavior combines low latency with lower wasted CPU time.</p></details>
+      <details><summary>What is the key difference between a traditional interrupt and a SunOS interrupt?</summary><p>A traditional handler keeps the interrupted execution captive and avoids sleeping. SunOS treats most interrupts as high-priority asynchronous threads, so they can use normal synchronization and block when necessary.</p></details>
+      <details><summary>What deadlocks can the runtime detector miss?</summary><p>Priority-inheritance-based detection works well for mutexes and write-held readers/writer locks, but cannot always detect reader/writer deadlocks involving read holders because there is no complete list of reader owners. Condition-variable deadlocks are also not detected.</p></details>
+      <h3>Last-minute checklist</h3>
+      <ul class="checklist">
+        <li>Kernel thread = scheduled entity.</li><li>Every LWP has a kernel thread; converse is false.</li>
+        <li>Dispatcher selects greatest global priority.</li><li>Ties use round-robin.</li>
+        <li>Preemption is disabled only in bounded regions.</li><li>Adaptive mutex: spin if owner runs, sleep otherwise.</li>
+        <li>Turnstiles avoid shared hashed wait queues.</li><li>Interrupts can sleep because they are threads.</li>
+        <li>One clock thread per system.</li><li>locknest checks lock-order cycles statically.</li>
+      </ul>
+    </section>
+
+    <section id="glossary">
+      <h2>8. Technical vocabulary</h2>
+      <div class="grid">
+        <article class="card"><h3>Preemption</h3><p>Forcibly stopping a running thread so a more urgent runnable thread can use the CPU.</p></article>
+        <article class="card"><h3>Dispatch latency</h3><p>Time between a thread becoming runnable and actually receiving CPU time; real-time systems try to bound it.</p></article>
+        <article class="card"><h3>Critical section</h3><p>A bounded region accessing shared state that must not interleave unsafely with another thread.</p></article>
+        <article class="card"><h3>Passivation</h3><p>Saving an interrupt thread’s state when it blocks so it can later run as a normal schedulable thread.</p></article>
+        <article class="card"><h3>Priority inversion</h3><p>A high-priority thread waits indirectly for low-priority work while medium-priority work runs.</p></article>
+        <article class="card"><h3>Symmetric multiprocessing</h3><p>An SMP system lets equivalent CPUs run threads from the same kernel and share memory.</p></article>
+        <article class="card"><h3>Swappable</h3><p>Eligible to move between memory and secondary storage; LWP data/stacks may be swappable, core thread data is not.</p></article>
+        <article class="card"><h3>Bounded section</h3><p>A non-preemptible region whose maximum execution time is limited, preserving real-time guarantees.</p></article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Source and scope</h2>
+      <p>This guide is based on <a href="https://s3.amazonaws.com/content.udacity-data.com/courses/ud923/references/ud923-eykholt-paper.pdf" target="_blank" rel="noopener">Eykholt et al., “Beyond Multiprocessing ... Multithreading the SunOS Kernel” (USENIX Summer 1992)</a> and the accompanying notes. The diagrams are explanatory redrawings, not reproductions of the paper’s figures. Historical details such as SPARC instruction counts and the original 100 Hz clock reference describe the system at publication time.</p>
+    </section>
+  </main>
+  <footer><div class="wrap">SunOS 5.0 kernel multithreading • responsive, print-friendly revision notes</div></footer>
+</body>
+</html>
