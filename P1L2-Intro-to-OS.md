@@ -39,7 +39,7 @@ User processes sit above a privilege boundary; the kernel talks directly to hard
 | Benefit | Why it matters |
 |---|---|
 | Everything is included | One integrated binary; no need to piece services together |
-| Inline / direct calls | Kernel components call each other as normal functions (no IPC hop) |
+| Inline / direct calls | Kernel components call each other as normal functions (no IPC hop) Inter process communication|
 | Time optimization | Low overhead for common paths (syscalls, I/O, scheduling) |
 
 ### Downsides
